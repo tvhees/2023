@@ -1,7 +1,27 @@
-use itertools::Itertools;
-
 pub fn process_part1(input: &str) -> String {
-    "".to_string()
+    input
+        .lines()
+        .map(|line| {
+            // Algorithm needs to handle lines with only one number in them
+            // Therefore can't consume the first number when we find/take it
+            // -- need to use peekable or generate a new Chars iterable for both
+            // first and last number?
+            let first_num = line
+                .chars()
+                .find(|char| char.to_digit(10).is_some())
+                .unwrap();
+
+            let last_num = line
+                .chars()
+                .rfind(|char| char.to_digit(10).is_some())
+                .unwrap();
+
+            String::from_iter([first_num, last_num])
+                .parse::<u32>()
+                .unwrap()
+        })
+        .sum::<u32>()
+        .to_string()
 }
 
 pub fn process_part2(_input: &str) -> String {
@@ -12,10 +32,13 @@ pub fn process_part2(_input: &str) -> String {
 mod tests {
     use super::*;
 
-    const INPUT: &str = "
+    const INPUT: &str = "1abc2
+pqr3stu8vwx
+a1b2c3d4e5f
+treb7uchet
 ";
 
-    const PART_1_EXPECTED: &str = "";
+    const PART_1_EXPECTED: &str = "142";
     const PART_2_EXPECTED: &str = "";
 
     #[test]
