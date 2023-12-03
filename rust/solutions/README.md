@@ -8,6 +8,18 @@
 cargo generate --path ../template --name day-XX
 ```
 
+Add the package to the root workspace in `Cargo.toml`
+
+```
+members = [
+    "day-01",
+
+    ...
+
+    "day-XX"
+]
+```
+
 2. Enter the new folder and watch tests
 
 ```
