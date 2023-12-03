@@ -1,35 +1,24 @@
-use itertools::FoldWhile::{Continue, Done};
-use itertools::Itertools;
 use std::collections::HashMap;
 
 pub fn process_part1(input: &str) -> String {
     input
         .lines()
         .map(|line| {
-            // Algorithm needs to handle lines with only one number in them
-            // Therefore can't consume the first number when we find/take it
-            // -- need to use peekable or generate a new Chars iterable for both
-            // first and last number?
-            let first_num = line
-                .chars()
-                .find(|char| char.to_digit(10).is_some())
-                .unwrap();
+            let mut digits = line.chars().filter_map(|character| character.to_digit(10));
 
-            let last_num = line
-                .chars()
-                .rfind(|char| char.to_digit(10).is_some())
-                .unwrap();
+            let first = digits.next().expect("No digit found in line");
+            let last = digits.last().unwrap_or(first);
 
-            String::from_iter([first_num, last_num])
+            return format!("{first}{last}")
                 .parse::<u32>()
-                .unwrap()
+                .expect("Couldn't parse formatted number");
         })
         .sum::<u32>()
         .to_string()
 }
 
-pub fn extract_word_as_number(word: &str) -> Option<&str> {
-    let number_map = HashMap::from([
+pub fn starting_number_as_digit(slice: &str) -> Option<&str> {
+    let number_map: HashMap<&str, &str> = HashMap::from([
         ("one", "1"),
         ("two", "2"),
         ("three", "3"),
@@ -41,66 +30,35 @@ pub fn extract_word_as_number(word: &str) -> Option<&str> {
         ("nine", "9"),
     ]);
 
-    for key in number_map.keys() {
-        if word.contains(key) {
-            return Some(number_map.get(key).unwrap());
-        };
-    }
-
-    None
-}
-
-pub fn get_first_number(line: &str) -> String {
-    line.chars()
-        .fold_while("".to_string(), |mut curr, char| {
-            if char.to_digit(10).is_some() {
-                return Done(char.to_string());
-            }
-
-            curr.push(char);
-            let extracted_number = extract_word_as_number(&curr);
-            if extracted_number.is_some() {
-                Done(extracted_number.unwrap().to_string())
+    number_map
+        .values()
+        .find(|val| slice.starts_with(*val))
+        .or(number_map.keys().find_map(|key| {
+            if slice.starts_with(*key) {
+                number_map.get(key)
             } else {
-                Continue(curr)
+                None
             }
-        })
-        .into_inner()
-}
-
-// Getting the last number for words we can't just iterate backwards
-// as the spelling of words will be reversed. There's definitely
-// a more elegant way to handle this!
-pub fn get_last_number(line: &str) -> String {
-    line.chars()
-        .rev()
-        .fold_while("".to_string(), |mut curr, char| {
-            if char.to_digit(10).is_some() {
-                return Done(char.to_string());
-            }
-
-            curr.insert(0, char);
-            let extracted_number = extract_word_as_number(&curr);
-            if extracted_number.is_some() {
-                Done(extracted_number.unwrap().to_string())
-            } else {
-                Continue(curr)
-            }
-        })
-        .into_inner()
+        }))
+        .copied()
 }
 
 pub fn process_part2(input: &str) -> String {
     input
         .lines()
         .map(|line| {
-            let first_num = get_first_number(line);
+            let first = (0..line.len())
+                .find_map(|i| starting_number_as_digit(&line[i..]))
+                .expect("Should be at least one digit or number");
 
-            let last_num = get_last_number(line);
+            let last = (0..line.len())
+                .rev()
+                .find_map(|i| starting_number_as_digit(&line[i..]))
+                .expect("Should be at least one digit or number going backwards");
 
-            String::from_iter([first_num, last_num])
+            return format!("{first}{last}")
                 .parse::<u32>()
-                .unwrap()
+                .expect("Couldn't parse formatted number");
         })
         .sum::<u32>()
         .to_string()
