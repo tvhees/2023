@@ -1,9 +1,8 @@
-use std::collections::{btree_map::Range, BTreeMap};
-
+use itertools::Itertools;
 use nom::{
     bytes::complete::{tag, take_until},
-    character::complete::{self, line_ending, newline, space1},
-    multi::separated_list1,
+    character::complete::{self, newline, space0, space1},
+    multi::{many1, separated_list1},
     sequence::{pair, preceded, separated_pair, terminated},
     IResult,
 };
@@ -60,7 +59,7 @@ pub fn process_part1(input: &str) -> String {
     let (_, (seeds, maps)) =
         separated_pair(seeds, pair(newline, newline), map_blocks)(input).expect("Well formed map");
 
-    let locations = seeds.iter().cloned().map(|seed| {
+    let locations = seeds.into_iter().map(|seed| {
         maps.iter().fold(seed, |current, (_name, ranges)| {
             for range in ranges {
                 let RangeSpec {
@@ -81,8 +80,76 @@ pub fn process_part1(input: &str) -> String {
     locations.min().unwrap().to_string()
 }
 
-pub fn process_part2(_input: &str) -> String {
-    "placeholder".to_string()
+fn seed_ranges(input: &str) -> IResult<&str, Vec<(i64, i64)>> {
+    let (input, seeds_specs) = preceded(
+        tag("seeds: "),
+        many1(terminated(
+            separated_pair(complete::i64, space1, complete::i64),
+            space0,
+        )),
+    )(input)?;
+
+    let seed_ranges = seeds_specs
+        .into_iter()
+        .map(|(start, count)| (start, start + count - 1));
+
+    Ok((input, seed_ranges.collect_vec()))
+}
+
+fn apply_maps_to_ranges(ranges: Vec<(i64, i64)>, map_specs: Vec<RangeSpec>) -> Vec<(i64, i64)> {
+    let mut seeds = ranges.clone();
+    let mut result = Vec::new();
+
+    for spec in map_specs {
+        let source_range = (spec.source_start, spec.source_start + spec.length - 1);
+        let dest_offset = spec.dest_start - spec.source_start;
+        let mut remaining = Vec::new();
+
+        for range in seeds {
+            let left = (range.0, range.1.min(source_range.0 - 1));
+            let overlap = (
+                range.0.max(source_range.0) + dest_offset,
+                range.1.min(source_range.1) + dest_offset,
+            );
+            let right = (range.0.max(source_range.1 + 1), range.1);
+
+            for res in [left, right] {
+                if res.0 <= res.1 {
+                    remaining.push(res);
+                }
+            }
+
+            if overlap.0 <= overlap.1 {
+                result.push(overlap);
+            }
+        }
+
+        seeds = remaining;
+    }
+
+    result.append(&mut seeds.clone());
+
+    return result.clone();
+}
+
+pub fn process_part2(input: &str) -> String {
+    // let seed_ranges = seed_ranges("seeds: 79 14 55 13");
+    let (_, (seed_ranges, maps)) =
+        separated_pair(seed_ranges, pair(newline, newline), map_blocks)(input)
+            .expect("Well formed map");
+
+    let location_ranges = maps
+        .into_iter()
+        .fold(seed_ranges, |current, (_name, specs)| {
+            apply_maps_to_ranges(current.clone(), specs)
+        });
+
+    location_ranges
+        .iter()
+        .map(|range| range.0)
+        .min()
+        .unwrap()
+        .to_string()
 }
 
 #[cfg(test)]
@@ -124,15 +191,15 @@ humidity-to-location map:
 56 93 4";
 
     const PART_1_EXPECTED: &str = "35";
-    const PART_2_EXPECTED: &str = "";
+    const PART_2_EXPECTED: &str = "46";
 
+    #[ignore]
     #[test]
     fn part_1_toy_input() {
         let result = process_part1(INPUT);
         assert_eq!(result, PART_1_EXPECTED);
     }
 
-    #[ignore] // Remove when doing part 2
     #[test]
     fn part_2_toy_input() {
         let result = process_part2(INPUT);
