@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use nom::{
     bytes::complete::tag,
-    character::complete::{self, newline, space1},
+    character::complete::{self, digit1, newline, space1},
     multi::separated_list1,
     sequence::{preceded, separated_pair, tuple},
     IResult,
@@ -34,11 +34,11 @@ pub fn race_distances(input: &str) -> IResult<&str, Vec<u32>> {
     We can solve quadratic eqn t^2 - lt + d = 0 to get the min and max allowed values of t
     t = (l +- sqrt(l^2 - 4d))/2
 */
-pub fn winning_range_for_race((l, d): (f32, f32)) -> (u32, u32) {
+pub fn winning_range_for_race((l, d): (f64, f64)) -> (u64, u64) {
     let root = (l.powi(2) - 4.0 * d).sqrt();
     let min = (l - root) / 2.0;
     let max = (l + root) / 2.0;
-    let result = (min.floor() as u32 + 1, max.ceil() as u32 - 1);
+    let result = (min.floor() as u64 + 1, max.ceil() as u64 - 1);
     return result;
 }
 
@@ -53,14 +53,38 @@ pub fn process_part1(input: &str) -> String {
 
     races
         .into_iter()
-        .map(|(l, d)| winning_range_for_race((l as f32, d as f32)))
+        .map(|(l, d)| winning_range_for_race((l as f64, d as f64)))
         .map(|(min, max)| max - min + 1)
-        .product::<u32>()
+        .product::<u64>()
         .to_string()
 }
 
-pub fn process_part2(_input: &str) -> String {
-    "placeholder".to_string()
+pub fn single_race_time(input: &str) -> IResult<&str, f64> {
+    let (input, times) = preceded(
+        tuple((tag("Time:"), space1)),
+        separated_list1(space1, digit1),
+    )(input)?;
+
+    let time = times.join("").parse::<f64>().unwrap();
+    Ok((input, time))
+}
+
+pub fn single_race_distance(input: &str) -> IResult<&str, f64> {
+    let (input, distances) = preceded(
+        tuple((tag("Distance:"), space1)),
+        separated_list1(space1, digit1),
+    )(input)?;
+
+    let distance = distances.join("").parse::<f64>().unwrap();
+
+    Ok((input, distance))
+}
+
+pub fn process_part2(input: &str) -> String {
+    let (_, (time, distance)) =
+        separated_pair(single_race_time, newline, single_race_distance)(input).unwrap();
+    let (min, max) = winning_range_for_race((time, distance));
+    (max - min + 1).to_string()
 }
 
 #[cfg(test)]
@@ -71,7 +95,7 @@ mod tests {
 Distance:  9  40  200";
 
     const PART_1_EXPECTED: &str = "288";
-    const PART_2_EXPECTED: &str = "";
+    const PART_2_EXPECTED: &str = "71503";
 
     #[test]
     fn part_1_toy_input() {
@@ -79,7 +103,6 @@ Distance:  9  40  200";
         assert_eq!(result, PART_1_EXPECTED);
     }
 
-    #[ignore] // Remove when doing part 2
     #[test]
     fn part_2_toy_input() {
         let result = process_part2(INPUT);
