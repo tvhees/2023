@@ -14,14 +14,11 @@ pub fn get_history_pyramid(input: Vec<i64>) -> Vec<Vec<i64>> {
         }
 
         if next_row.clone().into_iter().all(|val| val == 0) {
-            dbg!(&next_row);
             break;
         } else {
             differences.push(next_row)
         }
     }
-
-    dbg!(&differences);
 
     return differences;
 }
